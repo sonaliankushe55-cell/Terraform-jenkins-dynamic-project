@@ -1,24 +1,31 @@
-provider "aws" {
-  region = "ap-south-1"
-}
+---
+- name: Create VPC
+  amazon.aws.ec2_vpc_net:
+    name: Sonali-VPC-ansible
+    cidr_block: 10.0.0.0/16
+    region: ap-south-1
+    state: present
+  register: vpc
 
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
+- name: Create Public Subnet
+  amazon.aws.ec2_vpc_subnet:
+    region: us-west-1
+    vpc_id: "{{ vpc.vpc.id }}"
+    cidr: 10.0.1.0/24
+    az: ap-south-1b
+    state: present
 
-  tags = {
-    Name = "jenkins-vpc"
-  }
-}
+- name: Create IGW
+  amazon.aws.ec2_vpc_igw:
+    region: ap-south-1
+    vpc_id: "{{ vpc.vpc.id }}"
+    state: present
+  register: igw
 
-resource "aws_subnet" "public" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
-
-  tags = {
-    Name = "public-subnet"
-  }
-}
-
-output "vpc_id" {
-  value = aws_vpc.main.id
-}
+- name: Create Route Table
+  amazon.aws.ec2_vpc_route_table:
+    region: ap-south-1
+    vpc_id: "{{ vpc.vpc.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw.gateway_id }}"
